@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>לוח בקרה שבועי - מובמנט</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<style>
+  :root{
+    --bg:#F4F6F7;
+    --card:#FFFFFF;
+    --ink:#1E2530;
+    --ink-soft:#5B6572;
+    --line:#E2E6E9;
+    --accent:#2F6F6D;
+    --accent-soft:#DCEBEA;
+    --amber:#B8860B;
+    --good:#2E7D4F;
+    --good-soft:#E4F3EA;
+    --warn:#B23A2E;
+    --warn-soft:#FBE7E4;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", Arial, sans-serif;
+    padding:28px 32px 60px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+  .top{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin-bottom:22px;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  h1{
+    font-size:22px;
+    margin:0;
+    letter-spacing:.2px;
+  }
+  .eyebrow{
+    color:var(--accent);
+    font-size:12px;
+    font-weight:700;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    margin-bottom:4px;
+  }
+  .sub{color:var(--ink-soft);font-size:13px;}
+
+  .upload-box{
+    background:var(--card);
+    border:1.5px dashed var(--line);
+    border-radius:10px;
+    padding:18px 20px;
+    display:flex;
+    align-items:center;
+    gap:16px;
+    margin-bottom:24px;
+  }
+  .upload-box.dragging{border-color:var(--accent); background:var(--accent-soft);}
+  .upload-box input[type=file]{display:none;}
+  .upload-btn{
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    padding:9px 18px;
+    border-radius:6px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .upload-btn:hover{background:#245957;}
+  .file-status{font-size:13px;color:var(--ink-soft);}
+  .file-status b{color:var(--ink);}
+
+  .upload-hint{
+    background:var(--warn-soft);
+    color:var(--warn);
+    border:1px solid #F0C6BF;
+    border-radius:8px;
+    padding:10px 16px;
+    font-size:13px;
+    margin-bottom:24px;
+  }
+  .upload-hint b{color:inherit;}
+
+  .grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:18px;
+    margin-bottom:26px;
+  }
+  @media (max-width:720px){ .grid{grid-template-columns:1fr;} }
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:20px 20px 18px;
+  }
+  .card h2{
+    font-size:16px;
+    margin:0 0 14px;
+    padding-bottom:10px;
+    border-bottom:1px solid var(--line);
+  }
+  .row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:7px 0;
+    font-size:13.5px;
+  }
+  .row label{color:var(--ink-soft);}
+  .row input{
+    width:88px;
+    text-align:center;
+    padding:5px 6px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    font-size:13.5px;
+    font-family:inherit;
+  }
+  .row input:focus{outline:2px solid var(--accent-soft); border-color:var(--accent);}
+  .row .val{font-weight:600;}
+  .row.readonly .val{color:var(--ink);}
+  .row.computed{background:var(--accent-soft); margin:2px -8px; padding:8px; border-radius:6px;}
+  .row.computed label{color:var(--ink);}
+  .pill{
+    display:inline-block;
+    padding:2px 10px;
+    border-radius:20px;
+    font-weight:700;
+    font-size:13px;
+  }
+  .pill.good{background:var(--good-soft); color:var(--good);}
+  .pill.warn{background:var(--warn-soft); color:var(--warn);}
+  .pill.mid{background:#FBF3DF; color:var(--amber);}
+
+  .chart-card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:20px;
+  }
+  .chart-card h2{font-size:16px;margin:0 0 14px;}
+  .empty-note{
+    color:var(--ink-soft);
+    font-size:13px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px 18px;
+  }
+
+  .table-wrap{overflow-x:auto;}
+  table.summary-table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13.5px;
+  }
+  table.summary-table th, table.summary-table td{
+    padding:10px 12px;
+    text-align:center;
+    border-bottom:1px solid var(--line);
+    white-space:nowrap;
+  }
+  table.summary-table th{
+    color:var(--ink-soft);
+    font-weight:700;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:.4px;
+    border-bottom:2px solid var(--line);
+  }
+  table.summary-table td:first-child, table.summary-table th:first-child{
+    text-align:right;
+    font-weight:700;
+  }
+  table.summary-table tbody tr:hover{background:var(--bg);}
+  .row-delete-btn{
+    background:none;
+    border:1px solid var(--line);
+    color:var(--warn);
+    width:26px;
+    height:26px;
+    border-radius:6px;
+    cursor:pointer;
+    font-size:14px;
+    line-height:1;
+    padding:0;
+  }
+  .row-delete-btn:hover{background:var(--warn-soft); border-color:var(--warn);}
+  table.summary-table tfoot td{
+    font-weight:700;
+    border-top:2px solid var(--line);
+    border-bottom:none;
+    background:var(--bg);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div>
+      <div class="eyebrow">פגישה שבועית · מוקד מובמנט</div>
+      <h1>לוח בקרה — עמידה ביעד שעות</h1>
+    </div>
+    <div class="sub">עמוד 1 מתוך 4</div>
+  </div>
+
+  <div class="upload-box" id="uploadBox">
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+    <button class="upload-btn" id="uploadBtn">בחר/י קובץ דוח נוכחות (Excel)</button>
+    <span class="file-status" id="fileStatus">טרם הועלה קובץ — הנתונים בכרטיסים למטה הם לדוגמה בלבד.</span>
+  </div>
+  <div class="upload-hint">
+    ⚠️ יש להעלות את <b>דוח סיניריון</b> בלבד. לפני ההעלאה יש למחוק שורות ועמודות ריקות בתחילת הקובץ, כך שעמודה <b>A</b> תתחיל בשורת הכותרות.
+  </div>
+
+  <div class="card" id="globalSettingsCard" style="margin-bottom:26px;">
+    <h2>הגדרות כלליות — משותף לכל הפעילויות</h2>
+    <div class="row">
+      <label>ימי עבודה שעברו</label>
+      <input type="number" min="0" id="globalDaysPassed" value="0">
+    </div>
+    <div class="row">
+      <label>סה״כ ימי עבודה בחודש</label>
+      <input type="number" min="0" id="globalTotalDays" value="0">
+    </div>
+  </div>
+
+  <div id="cardsGrid" class="grid"></div>
+
+  <div class="chart-card">
+    <h2>יעד מול ביצוע וצפי — לפי צוות</h2>
+    <canvas id="teamChart" height="90" style="direction:ltr;"></canvas>
+  </div>
+
+  <div class="chart-card" style="margin-top:18px;">
+    <h2>טבלה מסכמת — כל הצוותים</h2>
+    <div class="table-wrap">
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th>צוות</th>
+            <th>יעד יומי</th>
+            <th>יעד שעות (מחושב)</th>
+            <th>ביצוע שעות</th>
+            <th>ממוצע יומי</th>
+            <th>צפי שעות</th>
+            <th>עמידה ביעד</th>
+          </tr>
+        </thead>
+        <tbody id="summaryTableBody"></tbody>
+        <tfoot id="summaryTableFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <div class="empty-note" style="margin-top:18px;">
+    "ימי עבודה שעברו" ו"סה״כ ימי עבודה בחודש" מוזנים פעם אחת למעלה ומשותפים לכל הפעילויות. בכל כרטיס מוזן "יעד יומי" בלבד, ו"יעד שעות" מחושב אוטומטית (יעד יומי × סה״כ ימי עבודה). שאר השדות מחושבים אוטומטית, ו"ביצוע שעות" נשלף מקובץ האקסל שהועלה (עמודה G = מוקד/צוות, עמודה S = שעות עבודה).
+  </div>
+
+  <div class="chart-card" style="margin-top:26px;">
+    <h2>טלפוניה — נתוני נציגים</h2>
+    <div class="upload-box" id="telephonyUploadBox">
+      <input type="file" id="telephonyFileInput" accept=".xlsx,.xls,.csv">
+      <button class="upload-btn" id="telephonyUploadBtn">בחר/י קובץ קולטק</button>
+      <span class="file-status" id="telephonyFileStatus">טרם הועלה קובץ.</span>
+    </div>
+    <div class="upload-hint">
+      ⚠️ יש להוריד את קובץ הקולטק מעמוד <b>נציגים וקבוצות</b>, וללחוץ על <b>+</b> על כל הפעולות שרוצים לראות עבורן את הנציגים.
+    </div>
+
+    <div class="table-wrap">
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th>קבוצה</th>
+            <th>שם נציג</th>
+            <th>פריון</th>
+            <th>אחוז פריון</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="agentsTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ---------- decode helper for the report's escaped characters (_x0020_ etc.) ----------
+function decodeCell(v){
+  if (v === null || v === undefined) return v;
+  if (typeof v !== 'string') return v;
+  return v.replace(/_x([0-9A-Fa-f]{4})_/g, (m, hex) => String.fromCharCode(parseInt(hex,16)));
+}
+
+const SITE_NAME = 'מובמנט';
+const EXTRA_SITES = ['פריפיט']; // sites outside SITE_NAME whose teams we still want on the dashboard, keyed as "site team"
+let teams = {}; // teamName -> { hours: number, dailyTarget: number }
+let globalSettings = { daysPassed: 0, totalDays: 0 }; // shared across all activities
+
+function defaultTeams(){
+  return {
+    'מובמנט': { hours: 0, dailyTarget: 0 },
+    'מאוחדת': { hours: 0, dailyTarget: 0 },
+    'פריפיט שירות': { hours: 0, dailyTarget: 0 },
+    'פריפיט מכירות': { hours: 0, dailyTarget: 0 }
+  };
+}
+teams = defaultTeams();
+
+function splitDept(raw){
+  const s = decodeCell(raw) || '';
+  const parts = s.split(/\s*-\s*/);
+  const site = (parts[0] || '').trim();
+  const team = parts.length > 1 ? parts[1].trim() : site;
+  return { site, team };
+}
+
+function findHeaderRow(rows){
+  const targets = ['עובד - שם משפחה','עובד - שם פרטי','מחלקה - שם מחלקה','נוכח לשכר'];
+  for (let r = 0; r < Math.min(rows.length, 30); r++){
+    const decoded = rows[r].map(decodeCell);
+    let hits = 0;
+    targets.forEach(t => { if (decoded.includes(t)) hits++; });
+    if (hits >= 3) return { rowIndex: r, decoded };
+  }
+  return null;
+}
+
+function parseWorkbook(ab){
+  const wb = XLSX.read(ab, { type:'array' });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header:1, raw:true, defval:null });
+
+  const header = findHeaderRow(rows);
+  if (!header) throw new Error('לא נמצאה שורת כותרות מתאימה בקובץ');
+
+  const idx = {
+    lastName: header.decoded.indexOf('עובד - שם משפחה'),
+    firstName: header.decoded.indexOf('עובד - שם פרטי'),
+    dept: header.decoded.indexOf('מחלקה - שם מחלקה'),
+    hours: header.decoded.indexOf('נוכח לשכר')
+  };
+
+  const newTeams = {};
+  for (let r = header.rowIndex + 1; r < rows.length; r++){
+    const row = rows[r];
+    if (!row) continue;
+    const deptRaw = row[idx.dept];
+    if (!deptRaw) continue;
+    const { site, team } = splitDept(deptRaw);
+    let key;
+    if (site === SITE_NAME) key = team;
+    else if (EXTRA_SITES.includes(site)) key = site + ' ' + team;
+    else continue;
+
+    const hoursVal = Number(row[idx.hours]) || 0;
+    if (!newTeams[key]) newTeams[key] = { hours: 0 };
+    newTeams[key].hours += hoursVal;
+  }
+
+  if (Object.keys(newTeams).length === 0){
+    throw new Error('לא נמצאו רשומות עבור מוקד ' + SITE_NAME + ' או ' + EXTRA_SITES.join('/') + ' בקובץ');
+  }
+  return newTeams;
+}
+
+// ---------- rendering ----------
+const cardsGrid = document.getElementById('cardsGrid');
+let chart = null;
+Chart.register(ChartDataLabels);
+
+function pct(v){ return (v*100).toFixed(0) + '%'; }
+
+function pillClass(ratio){
+  if (ratio >= 1) return 'good';
+  if (ratio >= 0.9) return 'mid';
+  return 'warn';
+}
+
+function renderCards(){
+  cardsGrid.innerHTML = '';
+  Object.keys(teams).forEach(teamName => {
+    const t = teams[teamName];
+    if (t.dailyTarget === undefined) t.dailyTarget = 0;
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <h2>צוות ${teamName}</h2>
+      <div class="row">
+        <label>יעד יומי (שעות)</label>
+        <input type="number" min="0" data-field="dailyTarget" data-team="${teamName}" value="${t.dailyTarget}">
+      </div>
+      <div class="row computed">
+        <label>יעד שעות (מחושב)</label>
+        <span class="val" id="target-${teamName}">—</span>
+      </div>
+      <div class="row readonly">
+        <label>ביצוע שעות (מהקובץ)</label>
+        <span class="val" id="hours-${teamName}">${t.hours.toFixed(1)}</span>
+      </div>
+      <div class="row computed">
+        <label>ממוצע יומי</label>
+        <span class="val" id="avg-${teamName}">—</span>
+      </div>
+      <div class="row computed">
+        <label>צפי שעות</label>
+        <span class="val" id="forecast-${teamName}">—</span>
+      </div>
+      <div class="row computed">
+        <label>צפי עמידה ביעד</label>
+        <span class="pill" id="pct-${teamName}">—</span>
+      </div>
+    `;
+    cardsGrid.appendChild(card);
+  });
+
+  cardsGrid.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const team = e.target.dataset.team;
+      const field = e.target.dataset.field;
+      teams[team][field] = Number(e.target.value) || 0;
+      recompute();
+    });
+  });
+
+  recompute();
+}
+
+function recompute(){
+  Object.keys(teams).forEach(teamName => {
+    const t = teams[teamName];
+    const target = (t.dailyTarget || 0) * (globalSettings.totalDays || 0);
+    const avg = globalSettings.daysPassed > 0 ? t.hours / globalSettings.daysPassed : 0;
+    const forecast = avg * (globalSettings.totalDays || 0);
+    const ratio = target > 0 ? forecast / target : 0;
+
+    const targetEl = document.getElementById(`target-${teamName}`);
+    const avgEl = document.getElementById(`avg-${teamName}`);
+    const fcEl = document.getElementById(`forecast-${teamName}`);
+    const pctEl = document.getElementById(`pct-${teamName}`);
+    if (targetEl) targetEl.textContent = target > 0 ? target.toFixed(0) + ' שעות' : '—';
+    if (avgEl) avgEl.textContent = avg > 0 ? avg.toFixed(2) + ' שעות/יום' : '—';
+    if (fcEl) fcEl.textContent = forecast > 0 ? forecast.toFixed(1) + ' שעות' : '—';
+    if (pctEl){
+      pctEl.textContent = target > 0 ? pct(ratio) : '—';
+      pctEl.className = 'pill ' + (target > 0 ? pillClass(ratio) : '');
+    }
+  });
+  renderChart();
+  renderTable();
+}
+
+function renderTable(){
+  const body = document.getElementById('summaryTableBody');
+  const foot = document.getElementById('summaryTableFoot');
+  if (!body || !foot) return;
+
+  const totals = { dailyTarget:0, target:0, hours:0, forecast:0 };
+
+  body.innerHTML = Object.keys(teams).map(teamName => {
+    const t = teams[teamName];
+    const target = (t.dailyTarget || 0) * (globalSettings.totalDays || 0);
+    const avg = globalSettings.daysPassed > 0 ? t.hours / globalSettings.daysPassed : 0;
+    const forecast = avg * (globalSettings.totalDays || 0);
+    const ratio = target > 0 ? forecast / target : 0;
+
+    totals.dailyTarget += t.dailyTarget || 0;
+    totals.target += target;
+    totals.hours += t.hours || 0;
+    totals.forecast += forecast;
+
+    return `
+      <tr>
+        <td>${teamName}</td>
+        <td>${(t.dailyTarget || 0).toFixed(0)}</td>
+        <td>${target > 0 ? target.toFixed(0) : '—'}</td>
+        <td>${(t.hours || 0).toFixed(1)}</td>
+        <td>${avg > 0 ? avg.toFixed(2) : '—'}</td>
+        <td>${forecast > 0 ? forecast.toFixed(1) : '—'}</td>
+        <td><span class="pill ${target > 0 ? pillClass(ratio) : ''}">${target > 0 ? pct(ratio) : '—'}</span></td>
+      </tr>`;
+  }).join('');
+
+  const totalRatio = totals.target > 0 ? totals.forecast / totals.target : 0;
+  foot.innerHTML = `
+    <tr>
+      <td>סה״כ</td>
+      <td>${totals.dailyTarget.toFixed(0)}</td>
+      <td>${totals.target.toFixed(0)}</td>
+      <td>${totals.hours.toFixed(1)}</td>
+      <td>—</td>
+      <td>${totals.forecast > 0 ? totals.forecast.toFixed(1) : '—'}</td>
+      <td><span class="pill ${totals.target > 0 ? pillClass(totalRatio) : ''}">${totals.target > 0 ? pct(totalRatio) : '—'}</span></td>
+    </tr>`;
+}
+
+function renderChart(){
+  const labels = Object.keys(teams);
+  const targetData = labels.map(k => Math.round((teams[k].dailyTarget || 0) * (globalSettings.totalDays || 0)));
+  const actualData = labels.map(k => Math.round((teams[k].hours || 0) * 10) / 10);
+  const forecastData = labels.map(k => {
+    const t = teams[k];
+    const avg = globalSettings.daysPassed > 0 ? t.hours / globalSettings.daysPassed : 0;
+    return Math.round(avg * (globalSettings.totalDays || 0) * 10) / 10;
+  });
+
+  const ctx = document.getElementById('teamChart').getContext('2d');
+  if (chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'יעד שעות', data: targetData, backgroundColor: '#C9A227', borderRadius: 5, maxBarThickness: 32 },
+        { label: 'ביצוע בפועל', data: actualData, backgroundColor: '#2F6F6D', borderRadius: 5, maxBarThickness: 32 },
+        { label: 'צפי שעות', data: forecastData, backgroundColor: '#4C9A6A', borderRadius: 5, maxBarThickness: 32 }
+      ]
+    },
+    options: {
+      responsive: true,
+      layout: { padding: { top: 24 } },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          rtl: true,
+          labels: { font: { size: 12 }, usePointStyle: true, boxWidth: 8, padding: 16 }
+        },
+        datalabels: {
+          anchor: 'end',
+          align: 'end',
+          offset: 2,
+          color: '#5B6572',
+          font: { size: 11, weight: '600' },
+          formatter: v => v > 0 ? v.toLocaleString('he-IL') : ''
+        }
+      },
+      scales: {
+        y: { beginAtZero: true, grid: { color: '#EDEFF1' }, ticks: { color: '#5B6572' } },
+        x: { grid: { display: false }, ticks: { color: '#1E2530', font: { weight: '600' } } }
+      }
+    }
+  });
+}
+
+// ---------- global settings (shared across all activities) ----------
+const globalDaysPassedInput = document.getElementById('globalDaysPassed');
+const globalTotalDaysInput = document.getElementById('globalTotalDays');
+globalDaysPassedInput.addEventListener('input', e => {
+  globalSettings.daysPassed = Number(e.target.value) || 0;
+  recompute();
+});
+globalTotalDaysInput.addEventListener('input', e => {
+  globalSettings.totalDays = Number(e.target.value) || 0;
+  recompute();
+});
+
+// ---------- file upload ----------
+const fileInput = document.getElementById('fileInput');
+const uploadBtn = document.getElementById('uploadBtn');
+const uploadBox = document.getElementById('uploadBox');
+const fileStatus = document.getElementById('fileStatus');
+
+uploadBtn.addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) handleFile(file);
+});
+
+['dragover','dragenter'].forEach(ev => uploadBox.addEventListener(ev, e => {
+  e.preventDefault(); uploadBox.classList.add('dragging');
+}));
+['dragleave','drop'].forEach(ev => uploadBox.addEventListener(ev, e => {
+  e.preventDefault(); uploadBox.classList.remove('dragging');
+}));
+uploadBox.addEventListener('drop', e => {
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+
+function handleFile(file){
+  fileStatus.textContent = 'טוען את ' + file.name + '...';
+  const reader = new FileReader();
+  reader.onload = evt => {
+    try{
+      const parsed = parseWorkbook(evt.target.result);
+      // preserve manual inputs already entered, only replace hours
+      Object.keys(parsed).forEach(teamName => {
+        if (!teams[teamName]) teams[teamName] = { hours:0, dailyTarget:0 };
+        teams[teamName].hours = parsed[teamName].hours;
+      });
+      fileStatus.innerHTML = 'נטען בהצלחה: <b>' + file.name + '</b> · נמצאו ' + Object.keys(parsed).length + ' צוותים במוקד ' + SITE_NAME;
+      renderCards();
+    } catch(err){
+      fileStatus.textContent = 'שגיאה בקריאת הקובץ: ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ---------- telephony (agent data) upload — UI only for now, parsing TBD ----------
+const telephonyFileInput = document.getElementById('telephonyFileInput');
+const telephonyUploadBtn = document.getElementById('telephonyUploadBtn');
+const telephonyUploadBox = document.getElementById('telephonyUploadBox');
+const telephonyFileStatus = document.getElementById('telephonyFileStatus');
+
+telephonyUploadBtn.addEventListener('click', () => telephonyFileInput.click());
+
+telephonyFileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) handleTelephonyFile(file);
+});
+
+['dragover','dragenter'].forEach(ev => telephonyUploadBox.addEventListener(ev, e => {
+  e.preventDefault(); telephonyUploadBox.classList.add('dragging');
+}));
+['dragleave','drop'].forEach(ev => telephonyUploadBox.addEventListener(ev, e => {
+  e.preventDefault(); telephonyUploadBox.classList.remove('dragging');
+}));
+telephonyUploadBox.addEventListener('drop', e => {
+  const file = e.dataTransfer.files[0];
+  if (file) handleTelephonyFile(file);
+});
+
+// column A = group name, column B = agent name, column AA (index 26) = פריון
+const GROUP_MAP = {
+  'נציגי יוביטל': 'מובמנט',
+  'נציגי מאוחדת': 'מאוחדת'
+};
+const ALLOWED_TEAMS = ['מובמנט', 'מאוחדת', 'כללית פריפיט'];
+
+function parseAgentsWorkbook(ab){
+  const wb = XLSX.read(ab, { type:'array' });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header:1, raw:true, defval:null });
+
+  const agents = [];
+  for (let r = 1; r < rows.length; r++){ // row 0 assumed to be the header row
+    const row = rows[r];
+    if (!row) continue;
+    const agentName = decodeCell(row[1]);
+    if (!agentName) continue;
+    const rawGroup = (decodeCell(row[0]) || '').toString().trim();
+    const team = GROUP_MAP[rawGroup] || rawGroup;
+    if (!ALLOWED_TEAMS.includes(team)) continue;
+    const piryon = Number(row[26]) || 0;
+    agents.push({ team, agentName: agentName.toString().trim(), piryon });
+  }
+
+  if (agents.length === 0){
+    throw new Error('לא נמצאו רשומות נציגים בקובץ עבור ' + ALLOWED_TEAMS.join('/'));
+  }
+  agents.sort((a, b) => b.piryon - a.piryon);
+  return agents;
+}
+
+let currentAgents = [];
+
+function renderAgentsTable(){
+  const body = document.getElementById('agentsTableBody');
+  if (!body) return;
+  body.innerHTML = currentAgents.map((a, i) => {
+    const ratio = a.piryon / 7;
+    return `
+      <tr>
+        <td>${a.team}</td>
+        <td>${a.agentName}</td>
+        <td>${a.piryon.toFixed(1)}</td>
+        <td><span class="pill ${pillClass(ratio)}">${pct(ratio)}</span></td>
+        <td><button class="row-delete-btn" data-index="${i}" title="מחק רשומה">✕</button></td>
+      </tr>`;
+  }).join('');
+}
+
+document.getElementById('agentsTableBody').addEventListener('click', e => {
+  const btn = e.target.closest('.row-delete-btn');
+  if (!btn) return;
+  const index = Number(btn.dataset.index);
+  currentAgents.splice(index, 1);
+  renderAgentsTable();
+});
+
+function handleTelephonyFile(file){
+  telephonyFileStatus.textContent = 'טוען את ' + file.name + '...';
+  const reader = new FileReader();
+  reader.onload = evt => {
+    try{
+      currentAgents = parseAgentsWorkbook(evt.target.result);
+      renderAgentsTable();
+      telephonyFileStatus.innerHTML = 'נטען בהצלחה: <b>' + file.name + '</b> · נמצאו ' + currentAgents.length + ' נציגים';
+    } catch(err){
+      telephonyFileStatus.textContent = 'שגיאה בקריאת הקובץ: ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+renderCards();
+</script>
+</body>
+</html>
